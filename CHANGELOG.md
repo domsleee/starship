@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.14.0](https://github.com/starship/starship/compare/v1.13.1...v1.14.0) (2023-03-06)
+
+
+### Features
+
+* **release:** handle chocolatey starship.portable and starship.install pkg publishing ([#4723](https://github.com/starship/starship/issues/4723)) ([b55774d](https://github.com/starship/starship/commit/b55774d3a68b32c0ed17983adeb6355e75c65f6b))
+
+
+### Bug Fixes
+
+* **preset:** add output-flag to avoid encoding issues ([#4926](https://github.com/starship/starship/issues/4926)) ([5e78226](https://github.com/starship/starship/commit/5e78226a3fbe722331f6f0a1d352bbc48d38247f))
+
 ## [1.13.1](https://github.com/starship/starship/compare/v1.13.0...v1.13.1) (2023-02-26)
 
 
