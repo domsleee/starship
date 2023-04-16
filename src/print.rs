@@ -135,6 +135,8 @@ pub fn get_prompt(context: Context) -> String {
         buf = buf.replace('\n', " \\n");
     }
 
+    context.timings.print();
+
     buf
 }
 
@@ -319,9 +321,14 @@ fn handle_module<'a>(
 
     if ALL_MODULES.contains(&module) {
         // Write out a module if it isn't disabled
-        if !context.is_module_disabled_in_config(module) {
+        context.timings.start(21);
+        let is_disabled = context.is_module_disabled_in_config(module);
+        context.timings.stop(21);
+        context.timings.start(15);
+        if !is_disabled {
             modules.extend(modules::handle(module, context));
         }
+        context.timings.stop(15);
     } else if module.starts_with("custom.") || module.starts_with("env_var.") {
         // custom.<name> and env_var.<name> are special cases and handle disabled modules themselves
         modules.extend(modules::handle(module, context));

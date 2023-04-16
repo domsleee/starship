@@ -162,7 +162,6 @@ impl log::Log for StarshipLogger {
             return;
         }
 
-        let enable_timings = true;
         let to_print = format!(
             "[{}{}] - ({}): {}",
             record.level(),

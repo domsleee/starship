@@ -14,7 +14,6 @@ use gix::{
     state as git_state, Repository, ThreadSafeRepository,
 };
 use once_cell::sync::OnceCell;
-use std::cell::Cell;
 #[cfg(test)]
 use std::collections::HashMap;
 use std::env;
@@ -77,6 +76,8 @@ pub struct Context<'a> {
 
     /// Starship root config
     pub root_config: StarshipRootConfig,
+
+    pub timings: Timings,
 
     /// Avoid issues with unused lifetimes when features are disabled
     _marker: PhantomData<&'a ()>,
@@ -179,6 +180,7 @@ impl<'a> Context<'a> {
             #[cfg(feature = "battery")]
             battery_info_provider: &crate::modules::BatteryInfoProviderImpl,
             root_config,
+            timings: Timings::default(),
             _marker: PhantomData,
         }
     }
@@ -235,6 +237,7 @@ impl<'a> Context<'a> {
             files: &[],
             folders: &[],
             extensions: &[],
+            context: self,
         })
     }
 
@@ -460,6 +463,7 @@ pub struct ScanDir<'a> {
     files: &'a [&'a str],
     folders: &'a [&'a str],
     extensions: &'a [&'a str],
+    context: &'a Context<'a>,
 }
 
 impl<'a> ScanDir<'a> {
@@ -486,14 +490,64 @@ impl<'a> ScanDir<'a> {
     pub fn is_match(&self) -> bool {
         // if there exists a file with a file/folder/ext we've said we don't want,
         // fail the match straight away
-        self.dir_contents.has_no_negative_extension(self.extensions)
-            && self.dir_contents.has_no_negative_file_name(self.files)
-            && self.dir_contents.has_no_negative_folder(self.folders)
-            && (self
-                .dir_contents
-                .has_any_positive_extension(self.extensions)
-                || self.dir_contents.has_any_positive_file_name(self.files)
-                || self.dir_contents.has_any_positive_folder(self.folders))
+        self.context.timings.start(1);
+        if self
+            .dir_contents
+            .has_any_negative_extension(self.extensions)
+        {
+            self.context.timings.stop(1);
+            return false;
+        }
+        self.context.timings.stop(1);
+
+        self.context.timings.start(2);
+        if self.dir_contents.has_any_negative_file_name(self.files) {
+            self.context.timings.stop(2);
+            return false;
+        }
+        self.context.timings.stop(2);
+
+        self.context.timings.start(3);
+        if self.dir_contents.has_any_negative_folder(self.folders) {
+            self.context.timings.stop(3);
+            return false;
+        }
+        self.context.timings.stop(3);
+
+        self.context.timings.start(4);
+        if self
+            .dir_contents
+            .has_any_positive_extension(self.extensions)
+        {
+            self.context.timings.stop(4);
+            return true;
+        }
+        self.context.timings.stop(4);
+
+        self.context.timings.start(5);
+        if self.dir_contents.has_any_positive_file_name(self.files) {
+            self.context.timings.stop(5);
+            return true;
+        }
+        self.context.timings.stop(5);
+
+        self.context.timings.start(6);
+        if self.dir_contents.has_any_positive_folder(self.folders) {
+            self.context.timings.stop(6);
+            return true;
+        }
+        self.context.timings.stop(6);
+
+        false
+
+        // self.dir_contents.has_no_negative_extension(self.extensions)
+        //     && self.dir_contents.has_no_negative_file_name(self.files)
+        //     && self.dir_contents.has_no_negative_folder(self.folders)
+        //     && (self
+        //         .dir_contents
+        //         .has_any_positive_extension(self.extensions)
+        //         || self.dir_contents.has_any_positive_file_name(self.files)
+        //         || self.dir_contents.has_any_positive_folder(self.folders))
     }
 }
 
@@ -654,6 +708,8 @@ fn parse_width(width: &str) -> Result<usize, ParseIntError> {
 
 #[cfg(test)]
 mod tests {
+    use crate::test::default_context;
+
     use super::*;
     use std::{fs, io};
 
@@ -679,6 +735,7 @@ mod tests {
             files: &["package.json"],
             extensions: &["js"],
             folders: &["node_modules"],
+            context: &default_context()
         }
         .is_match());
         empty.close()?;
@@ -690,6 +747,7 @@ mod tests {
             files: &["package.json"],
             extensions: &["js"],
             folders: &["node_modules"],
+            context: &default_context()
         }
         .is_match());
         rust.close()?;
@@ -701,6 +759,7 @@ mod tests {
             files: &["package.json"],
             extensions: &["js"],
             folders: &["node_modules"],
+            context: &default_context()
         }
         .is_match());
         java.close()?;
@@ -712,6 +771,7 @@ mod tests {
             files: &["package.json"],
             extensions: &["js"],
             folders: &["node_modules"],
+            context: &default_context()
         }
         .is_match());
         node.close()?;
@@ -723,6 +783,7 @@ mod tests {
             files: &[],
             extensions: &["tar.gz"],
             folders: &[],
+            context: &default_context()
         }
         .is_match());
         tarballs.close()?;
@@ -734,6 +795,7 @@ mod tests {
             files: &[],
             extensions: &["js", "!notfound", "!ts"],
             folders: &[],
+            context: &default_context()
         }
         .is_match());
         dont_match_ext.close()?;
@@ -745,6 +807,7 @@ mod tests {
             files: &["goodfile", "!notfound", "!evilfile"],
             extensions: &[],
             folders: &[],
+            context: &default_context()
         }
         .is_match());
         dont_match_file.close()?;
@@ -756,6 +819,7 @@ mod tests {
             files: &[],
             extensions: &[],
             folders: &["gooddir", "!notfound", "!evildir"],
+            context: &default_context()
         }
         .is_match());
         dont_match_folder.close()?;

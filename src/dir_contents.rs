@@ -7,7 +7,6 @@ use std::{
 
 use systemstat::Duration;
 
-#[derive(Debug)]
 pub struct DirContents {
     // HashSet of all files, no folders, relative to the base directory given at construction.
     files: HashSet<PathBuf>,
@@ -124,21 +123,20 @@ impl DirContents {
             .any(|ext| !ext.starts_with('!') && self.has_extension(ext))
     }
 
-    pub fn has_no_negative_file_name(&self, names: &[&str]) -> bool {
-        !names
+    pub fn has_any_negative_file_name(&self, names: &[&str]) -> bool {
+        names
             .iter()
             .any(|name| name.starts_with('!') && self.has_file_name(&name[1..]))
     }
 
-    pub fn has_no_negative_folder(&self, paths: &[&str]) -> bool {
-        !paths
+    pub fn has_any_negative_folder(&self, paths: &[&str]) -> bool {
+        paths
             .iter()
             .any(|path| path.starts_with('!') && self.has_folder(&path[1..]))
     }
 
-    pub fn has_no_negative_extension(&self, exts: &[&str]) -> bool {
-        !exts
-            .iter()
+    pub fn has_any_negative_extension(&self, exts: &[&str]) -> bool {
+        exts.iter()
             .any(|ext| ext.starts_with('!') && self.has_extension(&ext[1..]))
     }
 }
