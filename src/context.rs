@@ -1,7 +1,9 @@
 use crate::config::{ModuleConfig, StarshipConfig};
 use crate::configs::StarshipRootConfig;
 use crate::context_env::Env;
+use crate::dir_contents::DirContents;
 use crate::module::Module;
+use crate::timings::Timings;
 use crate::utils::{create_command, exec_timeout, read_file, CommandOutput, PathExt};
 
 use crate::modules;
@@ -12,19 +14,18 @@ use gix::{
     state as git_state, Repository, ThreadSafeRepository,
 };
 use once_cell::sync::OnceCell;
+use std::cell::Cell;
 #[cfg(test)]
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
-use std::fs;
 use std::marker::PhantomData;
 use std::num::ParseIntError;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::string::String;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use terminal_size::terminal_size;
 
 /// Context contains data or common methods that may be used by multiple modules.
@@ -418,142 +419,6 @@ fn get_config_path_os(env: &Env) -> Option<OsString> {
     Some(home_dir(env)?.join(".config").join("starship.toml").into())
 }
 
-#[derive(Debug)]
-pub struct DirContents {
-    // HashSet of all files, no folders, relative to the base directory given at construction.
-    files: HashSet<PathBuf>,
-    // HashSet of all file names, e.g. the last section without any folders, as strings.
-    file_names: HashSet<String>,
-    // HashSet of all folders, relative to the base directory given at construction.
-    folders: HashSet<PathBuf>,
-    // HashSet of all extensions found, without dots, e.g. "js" instead of ".js".
-    extensions: HashSet<String>,
-}
-
-impl DirContents {
-    #[cfg(test)]
-    fn from_path(base: &Path) -> Result<Self, std::io::Error> {
-        Self::from_path_with_timeout(base, Duration::from_secs(30))
-    }
-
-    fn from_path_with_timeout(base: &Path, timeout: Duration) -> Result<Self, std::io::Error> {
-        let start = Instant::now();
-
-        let mut folders: HashSet<PathBuf> = HashSet::new();
-        let mut files: HashSet<PathBuf> = HashSet::new();
-        let mut file_names: HashSet<String> = HashSet::new();
-        let mut extensions: HashSet<String> = HashSet::new();
-
-        fs::read_dir(base)?
-            .enumerate()
-            .take_while(|(n, _)| {
-                cfg!(test) // ignore timeout during tests
-                || n & 0xFF != 0 // only check timeout once every 2^8 entries
-                || start.elapsed() < timeout
-            })
-            .filter_map(|(_, entry)| entry.ok())
-            .for_each(|entry| {
-                let path = PathBuf::from(entry.path().strip_prefix(base).unwrap());
-                if entry.path().is_dir() {
-                    folders.insert(path);
-                } else {
-                    if !path.to_string_lossy().starts_with('.') {
-                        // Extract the file extensions (yes, that's plural) from a filename.
-                        // Why plural? Consider the case of foo.tar.gz. It's a compressed
-                        // tarball (tar.gz), and it's a gzipped file (gz). We should be able
-                        // to match both.
-
-                        // find the minimal extension on a file. ie, the gz in foo.tar.gz
-                        // NB the .to_string_lossy().to_string() here looks weird but is
-                        // required to convert it from a Cow.
-                        path.extension()
-                            .map(|ext| extensions.insert(ext.to_string_lossy().to_string()));
-
-                        // find the full extension on a file. ie, the tar.gz in foo.tar.gz
-                        path.file_name().map(|file_name| {
-                            file_name
-                                .to_string_lossy()
-                                .split_once('.')
-                                .map(|(_, after)| extensions.insert(after.to_string()))
-                        });
-                    }
-                    if let Some(file_name) = path.file_name() {
-                        // this .to_string_lossy().to_string() is also required
-                        file_names.insert(file_name.to_string_lossy().to_string());
-                    }
-                    files.insert(path);
-                }
-            });
-
-        log::trace!(
-            "Building HashSets of directory files, folders and extensions took {:?}",
-            start.elapsed()
-        );
-
-        Ok(Self {
-            files,
-            file_names,
-            folders,
-            extensions,
-        })
-    }
-
-    pub fn files(&self) -> impl Iterator<Item = &PathBuf> {
-        self.files.iter()
-    }
-
-    pub fn has_file(&self, path: &str) -> bool {
-        self.files.contains(Path::new(path))
-    }
-
-    pub fn has_file_name(&self, name: &str) -> bool {
-        self.file_names.contains(name)
-    }
-
-    pub fn has_folder(&self, path: &str) -> bool {
-        self.folders.contains(Path::new(path))
-    }
-
-    pub fn has_extension(&self, ext: &str) -> bool {
-        self.extensions.contains(ext)
-    }
-
-    pub fn has_any_positive_file_name(&self, names: &[&str]) -> bool {
-        names
-            .iter()
-            .any(|name| !name.starts_with('!') && self.has_file_name(name))
-    }
-
-    pub fn has_any_positive_folder(&self, paths: &[&str]) -> bool {
-        paths
-            .iter()
-            .any(|path| !path.starts_with('!') && self.has_folder(path))
-    }
-
-    pub fn has_any_positive_extension(&self, exts: &[&str]) -> bool {
-        exts.iter()
-            .any(|ext| !ext.starts_with('!') && self.has_extension(ext))
-    }
-
-    pub fn has_no_negative_file_name(&self, names: &[&str]) -> bool {
-        !names
-            .iter()
-            .any(|name| name.starts_with('!') && self.has_file_name(&name[1..]))
-    }
-
-    pub fn has_no_negative_folder(&self, paths: &[&str]) -> bool {
-        !paths
-            .iter()
-            .any(|path| path.starts_with('!') && self.has_folder(&path[1..]))
-    }
-
-    pub fn has_no_negative_extension(&self, exts: &[&str]) -> bool {
-        !exts
-            .iter()
-            .any(|ext| ext.starts_with('!') && self.has_extension(&ext[1..]))
-    }
-}
-
 pub struct Repo {
     pub repo: ThreadSafeRepository,
 
@@ -790,7 +655,7 @@ fn parse_width(width: &str) -> Result<usize, ParseIntError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io;
+    use std::{fs, io};
 
     fn testdir(paths: &[&str]) -> Result<tempfile::TempDir, std::io::Error> {
         let dir = tempfile::tempdir()?;
