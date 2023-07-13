@@ -104,7 +104,13 @@ enum Commands {
     #[clap(hide = true)]
     Time,
     /// Prints timings of all active modules
-    Timings(Properties),
+    Timings {
+        /// Specify a single module to run timings for.
+        #[clap(short = 'm', long)]
+        single_module: Option<String>,
+        #[clap(flatten)]
+        properties: Properties,
+    },
     /// Toggle a given starship module
     Toggle {
         /// The name of the module to be toggled
@@ -235,7 +241,10 @@ fn main() {
             }
         }
         Commands::Explain(props) => print::explain(props),
-        Commands::Timings(props) => print::timings(props),
+        Commands::Timings {
+            single_module,
+            properties,
+        } => print::timings(single_module, properties),
         Commands::Completions { shell } => generate(
             shell,
             &mut Cli::command(),

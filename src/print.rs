@@ -147,7 +147,7 @@ pub fn get_module(module_name: &str, context: Context) -> Option<String> {
     modules::handle(module_name, &context).map(|m| m.to_string())
 }
 
-pub fn timings(args: Properties) {
+pub fn timings(single_module: Option<String>, args: Properties) {
     let context = Context::new(args, Target::Main);
 
     struct ModuleTiming {
@@ -158,7 +158,7 @@ pub fn timings(args: Properties) {
         duration_len: usize,
     }
 
-    let mut modules = compute_modules(&context)
+    let mut modules = compute_modules(&context, single_module)
         .iter()
         .filter(|module| !module.is_empty() || module.duration.as_millis() > 0)
         .map(|module| ModuleTiming {
@@ -205,7 +205,7 @@ pub fn explain(args: Properties) {
 
     static DONT_PRINT: &[&str] = &["line_break"];
 
-    let modules = compute_modules(&context)
+    let modules = compute_modules(&context, None)
         .into_iter()
         .filter(|module| !DONT_PRINT.contains(&module.get_name().as_str()))
         // this contains empty modules which should not print
@@ -288,12 +288,18 @@ pub fn explain(args: Properties) {
     }
 }
 
-fn compute_modules<'a>(context: &'a Context) -> Vec<Module<'a>> {
+fn compute_modules<'a>(context: &'a Context, single_module: Option<String>) -> Vec<Module<'a>> {
     let mut prompt_order: Vec<Module<'a>> = Vec::new();
 
     let (_formatter, modules) = load_formatter_and_modules(context);
 
     for module in &modules {
+        if let Some(single_module_val) = &single_module {
+            if module != single_module_val {
+                continue;
+            }
+        }
+
         // Manually add all modules if `$all` is encountered
         if module == "all" {
             for module in all_modules_uniq(&modules) {
