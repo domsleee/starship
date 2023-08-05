@@ -10,6 +10,7 @@ function fish_prompt
     # Account for changes in variable name between v2.7 and v3.0
     set STARSHIP_DURATION "$CMD_DURATION$cmd_duration"
     set STARSHIP_JOBS (count (jobs -p))
+    starship_conditional_newline
     if test "$TRANSIENT" = "1"
         # Clear from cursor to end of screen as `commandline -f repaint` does not do this
         # See https://github.com/fish-shell/fish-shell/issues/8418
@@ -20,7 +21,7 @@ function fish_prompt
             printf "\e[1;32m❯\e[0m "
         end
     else
-        ::STARSHIP:: prompt --terminal-width="$COLUMNS" --status=$STARSHIP_CMD_STATUS --pipestatus="$STARSHIP_CMD_PIPESTATUS" --keymap=$STARSHIP_KEYMAP --cmd-duration=$STARSHIP_DURATION --jobs=$STARSHIP_JOBS
+        ::STARSHIP:: prompt --terminal-width="$COLUMNS" --status=$STARSHIP_CMD_STATUS --pipestatus="$STARSHIP_CMD_PIPESTATUS" --keymap=$STARSHIP_KEYMAP --cmd-duration=$STARSHIP_DURATION --jobs=$STARSHIP_JOBS --disable-add-newline
     end
 end
 
@@ -36,6 +37,7 @@ function fish_right_prompt
     # Account for changes in variable name between v2.7 and v3.0
     set STARSHIP_DURATION "$CMD_DURATION$cmd_duration"
     set STARSHIP_JOBS (count (jobs -p))
+    starship_conditional_newline
     if test "$TRANSIENT" = "1"
         if type -q starship_transient_rprompt_func
             starship_transient_rprompt_func
@@ -43,7 +45,15 @@ function fish_right_prompt
             printf ""
         end
     else
-        ::STARSHIP:: prompt --right --terminal-width="$COLUMNS" --status=$STARSHIP_CMD_STATUS --pipestatus="$STARSHIP_CMD_PIPESTATUS" --keymap=$STARSHIP_KEYMAP --cmd-duration=$STARSHIP_DURATION --jobs=$STARSHIP_JOBS
+        ::STARSHIP:: prompt --right --terminal-width="$COLUMNS" --status=$STARSHIP_CMD_STATUS --pipestatus="$STARSHIP_CMD_PIPESTATUS" --keymap=$STARSHIP_KEYMAP --cmd-duration=$STARSHIP_DURATION --jobs=$STARSHIP_JOBS --disable-add-newline
+    end
+end
+
+function starship_conditional_newline
+    if test "$STARSHIP_FIRST_PRINT" = "1"
+        set -gx STARSHIP_FIRST_PRINT 0
+    else
+        echo ""
     end
 end
 
@@ -54,6 +64,7 @@ set -g VIRTUAL_ENV_DISABLE_PROMPT 1
 builtin functions -e fish_mode_prompt
 
 set -gx STARSHIP_SHELL "fish"
+set -gx STARSHIP_FIRST_PRINT 1
 
 # Transience related functions
 function reset-transient --on-event fish_postexec
