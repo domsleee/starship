@@ -2818,6 +2818,7 @@ dependencies = [
  "urlencoding",
  "versions",
  "which",
+ "winapi",
  "windows 0.58.0",
  "winres",
  "yaml-rust2",

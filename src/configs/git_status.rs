@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -26,6 +28,7 @@ pub struct GitStatusConfig<'a> {
     pub disabled: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub windows_starship: Option<&'a str>,
+    pub async_paths: Option<Vec<PathBuf>>,
 }
 
 impl<'a> Default for GitStatusConfig<'a> {
@@ -48,6 +51,7 @@ impl<'a> Default for GitStatusConfig<'a> {
             ignore_submodules: false,
             disabled: false,
             windows_starship: None,
+            async_paths: None,
         }
     }
 }

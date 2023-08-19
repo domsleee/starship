@@ -34,6 +34,7 @@ mod git_metrics;
 mod git_state;
 mod git_status;
 mod gleam;
+mod git_status_async;
 mod golang;
 mod gradle;
 mod guix_shell;

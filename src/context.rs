@@ -694,10 +694,13 @@ impl Repo {
         command.args(git_args);
         log::trace!("Executing git command: {:?}", command);
 
-        exec_timeout(
-            &mut command,
-            Duration::from_millis(context.root_config.command_timeout),
-        )
+        let timeout = if context.properties.is_async_worker {
+            10 * 1000
+        } else {
+            context.root_config.command_timeout
+        };
+
+        exec_timeout(&mut command, Duration::from_millis(timeout))
     }
 }
 
@@ -866,6 +869,9 @@ pub struct Properties {
     /// The number of currently running jobs
     #[clap(short, long, default_value_t, value_parser=parse_jobs)]
     pub jobs: i64,
+    /// The async worker
+    #[clap(long)]
+    pub is_async_worker: bool,
 }
 
 impl Default for Properties {
@@ -878,6 +884,7 @@ impl Default for Properties {
             logical_path: None,
             cmd_duration: None,
             keymap: "viins".to_string(),
+            is_async_worker: false,
             jobs: 0,
         }
     }

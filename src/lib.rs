@@ -21,6 +21,8 @@ pub mod print;
 mod segment;
 mod serde_utils;
 mod utils;
+#[cfg(target_os = "windows")]
+pub mod win_fast_spawn;
 
 #[cfg(test)]
 mod test;

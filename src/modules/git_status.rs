@@ -1,11 +1,13 @@
 use once_cell::sync::OnceCell;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 
 use super::{Context, Module, ModuleConfig};
 
 use crate::configs::git_status::GitStatusConfig;
 use crate::context;
 use crate::formatter::StringFormatter;
+use crate::modules::git_status_async::GitStatusAsync;
 use crate::segment::Segment;
 use std::sync::Arc;
 
@@ -221,6 +223,12 @@ fn get_repo_status(
     let mut repo_status = RepoStatus::default();
     let mut args = vec!["status", "--porcelain=2"];
 
+    let mut git_status_async = GitStatusAsync::new(&context, &repo, &config);
+    let git_status_from_async = git_status_async.get_git_status_and_run_worker(&context, &repo);
+    if let Some(val) = git_status_from_async {
+        return Some(val);
+    }
+
     // for performance reasons, only pass flags if necessary...
     let has_ahead_behind = !config.ahead.is_empty() || !config.behind.is_empty();
     let has_up_to_date_diverged = !config.up_to_date.is_empty() || !config.diverged.is_empty();
@@ -249,6 +257,10 @@ fn get_repo_status(
             repo_status.add(status);
         }
     });
+
+    git_status_async
+        .store_result(&context, &repo_status)
+        .expect("HMM");
 
     Some(repo_status)
 }
@@ -279,8 +291,8 @@ fn get_stashed_count(repo: &context::Repo) -> Option<usize> {
     }
 }
 
-#[derive(Default, Debug, Copy, Clone)]
-struct RepoStatus {
+#[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct RepoStatus {
     ahead: Option<usize>,
     behind: Option<usize>,
     conflicted: usize,

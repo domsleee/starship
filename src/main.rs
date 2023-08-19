@@ -119,9 +119,16 @@ enum Commands {
 }
 
 fn main() {
+    // if !std::env::args().any(|x| x == "--is-async-worker") {
+    //     let exe_path = "starship.exe";
+    //     let args = r"module --is-async-worker git_status --path C:\git\wtg\CargoWise\Dev";
+    //     // fast_spawn::spawn_fast(exe_path, args);
+    // }
+
     // Configure the current terminal on windows to support ANSI escape sequences.
     #[cfg(windows)]
     let _ = nu_ansi_term::enable_ansi_support();
+
     logger::init();
     init_global_threadpool();
 
