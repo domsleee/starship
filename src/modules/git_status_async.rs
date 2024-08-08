@@ -96,7 +96,7 @@ impl GitStatusAsync {
 
         log::debug!("removing lock");
         self.log_info("removing_lock");
-        match fs::canonicalize(&self.async_paths.lock_path) {
+        match dunce::canonicalize(&self.async_paths.lock_path) {
             Ok(path) => {
                 fs::remove_file(&path)?;
                 log::debug!("lock removed");
@@ -158,6 +158,7 @@ fn launch_async_worker(repo_path: &str) {
     // todo: below works on windows but is noticeably slower on powershell 🤔🤔🤔
     #[cfg(not(windows))]
     {
+        #[allow(clippy::disallowed_methods)]
         let child = std::process::Command::new("starship")
             .args([
                 "module",
