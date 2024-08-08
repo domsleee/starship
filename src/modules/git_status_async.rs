@@ -38,11 +38,11 @@ impl GitStatusAsync {
             .map(|x| x.contains(&repo.path.parent().unwrap().to_path_buf()))
             .unwrap_or(false);
 
-        return Self {
+        Self {
             async_paths,
             log_file,
             enabled,
-        };
+        }
     }
 
     pub fn get_git_status_and_run_worker(
@@ -64,7 +64,7 @@ impl GitStatusAsync {
 
         if !self.async_paths.lock_path.exists() {
             let repo_path = repo.path.parent()?.to_string_lossy();
-            launch_async_worker(&repo_path.to_string());
+            launch_async_worker(repo_path.as_ref());
         } else {
             log::debug!(
                 "did not launch git_status worker since lock file exists ({:?})",
@@ -140,11 +140,11 @@ fn get_async_paths(context: &Context, repo: &context::Repo) -> AsyncPaths {
 
     let sanitized_repo_path = repo_path.replace(&['/', '\\', ':'][..], "_");
     log::debug!("async_dir: {async_dir:?}, sanitized_repo_path: {sanitized_repo_path}");
-    return AsyncPaths {
+    AsyncPaths {
         lock_path: async_dir.join(format!("{sanitized_repo_path}.lock")),
         data_path: async_dir.join(format!("{sanitized_repo_path}.json")),
         log_path: async_dir.join(format!("{sanitized_repo_path}.log")),
-    };
+    }
 }
 
 fn launch_async_worker(repo_path: &str) {
@@ -159,7 +159,7 @@ fn launch_async_worker(repo_path: &str) {
     #[cfg(not(windows))]
     {
         let child = std::process::Command::new("starship")
-            .args(&[
+            .args([
                 "module",
                 "--is-async-worker",
                 "git_status",

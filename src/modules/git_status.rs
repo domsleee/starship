@@ -223,8 +223,8 @@ fn get_repo_status(
     let mut repo_status = RepoStatus::default();
     let mut args = vec!["status", "--porcelain=2"];
 
-    let mut git_status_async = GitStatusAsync::new(&context, &repo, &config);
-    let git_status_from_async = git_status_async.get_git_status_and_run_worker(&context, &repo);
+    let mut git_status_async = GitStatusAsync::new(context, repo, config);
+    let git_status_from_async = git_status_async.get_git_status_and_run_worker(context, repo);
     if let Some(val) = git_status_from_async {
         return Some(val);
     }
@@ -259,8 +259,8 @@ fn get_repo_status(
     });
 
     git_status_async
-        .store_result(&context, &repo_status)
-        .expect("HMM");
+        .store_result(context, &repo_status)
+        .expect("git status should pass");
 
     Some(repo_status)
 }
