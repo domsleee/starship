@@ -1,7 +1,7 @@
 extern crate winapi;
 
 use core::slice;
-use std::ffi::{c_void, OsStr, OsString};
+use std::ffi::{OsStr, OsString};
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::prelude::OsStringExt;
 use std::ptr::{null, null_mut};
@@ -60,7 +60,7 @@ pub fn fast_background_spawn(cmd: &str, args: &str) -> () {
     ()
 }
 
-fn get_nul_handle() -> *mut c_void {
+fn get_nul_handle() -> *mut winapi::ctypes::c_void {
     let nul_handle = unsafe {
         CreateFileW(
             OsStr::new("NUL")
